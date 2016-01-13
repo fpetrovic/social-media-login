@@ -30,7 +30,9 @@ $aModule = array(
 
     ),
     'settings' => array(
-        array('group' => 'main', 'name' => 'serviceMap', 'type' => 'select', 'value' => '0', 'constraints' => 'googleMap|osmMap', 'position' => 1),
+        array('group' => 'main', 'name' => 'facebookLogin', 'type' => 'bool', 'value' => 'false', 'position' => 1),
+        array('group' => 'main', 'name' => 'gmailLogin', 'type' => 'bool', 'value' => 'false', 'position' => 1),
+        array('group' => 'main', 'name' => 'twitterLogin', 'type' => 'bool', 'value' => 'false', 'position' => 1),
     )
 );
 
