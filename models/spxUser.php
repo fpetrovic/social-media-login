@@ -10,6 +10,7 @@ class spxUser extends spxUser_parent
      */
     protected function _getFacebookUserId()
     {
+
         $oDb = oxDb::getDb();
         $oFb = oxRegistry::get("oxFb");
         $oConfig = $this->getConfig();

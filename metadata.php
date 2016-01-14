@@ -16,6 +16,7 @@ $aModule = array(
     'author' => 'Filip Petrovic <filip.petrovic@soprex.com>',
     'extend' => array(
         'oxuser'=>'spx/socialMediaLogin/models/spxUser',
+        'oxcmp_user'=>'spx/socialMediaLogin/components/spxOxcmp_user'
     ),                      //extends Models and Controllers
     'events' => array(
         'onActivate' => 'socialMediaLoginEvents::onActivate',
