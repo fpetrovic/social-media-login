@@ -26,14 +26,18 @@ $aModule = array(
     ),
     'files' => array(
         'socialMediaLoginEvents'=>'spx/socialMediaLogin/events/socialMediaLoginEvents.php',
+        'googleApi'=>'spx/socialMediaLogin/models/googleApi.php'
     ),
     'blocks' => array(
 
     ),
     'settings' => array(
-        array('group' => 'main', 'name' => 'facebookLogin', 'type' => 'bool', 'value' => 'true', 'position' => 1),
-        array('group' => 'main', 'name' => 'gmailLogin', 'type' => 'bool', 'value' => 'true', 'position' => 1),
-        array('group' => 'main', 'name' => 'twitterLogin', 'type' => 'bool', 'value' => 'true', 'position' => 1),
+        array('group' => 'socialMediaLogin', 'name' => 'facebookLogin', 'type' => 'bool', 'value' => 'true', 'position' => 1),
+        array('group' => 'socialMediaLogin', 'name' => 'gmailLogin', 'type' => 'bool', 'value' => 'true', 'position' => 2),
+        array('group' => 'socialMediaLogin', 'name' => 'googleApiKey', 'type' => 'str', 'value' => '', 'position' => 3),
+        array('group' => 'socialMediaLogin', 'name' => 'googleId', 'type' => 'str', 'value' => '', 'position' => 4),
+        array('group' => 'socialMediaLogin', 'name' => 'googleSecret', 'type' => 'str', 'value' => '', 'position' => 5),
+        array('group' => 'socialMediaLogin', 'name' => 'twitterLogin', 'type' => 'bool', 'value' => 'true', 'position' => 6),
     )
 );
 
