@@ -1,10 +1,20 @@
 <?php
 
-
+/**
+ * Class spxUser
+ * Extends core oxUser class. Adds posibility to login and register users via social
+ * networks(Twitter, Google+ and Facebook).Use strategy pattern for registering users from the file regSMLogin.php.
+ */
 class spxUser extends spxUser_parent
 {
 
-
+    /**
+     * Loads active user. Checks if user is logged in and if he is,loads the user.
+     * @param bool $blForceAdmin if it is true user is admin.
+     *
+     * @return bool
+     * @throws exception
+     */
     public function loadActiveUser($blForceAdmin = false)
     {
         $oConfig = $this->getConfig();
@@ -21,15 +31,14 @@ class spxUser extends spxUser_parent
             $blFoundInCookie = $sUserID ? true : false;
         }
 
-        // If facebook connection is enabled, trying to login user using Facebook ID
-        if (!$sUserID && !$blAdmin && $oConfig->getConfigParam("bl_showFbConnect")) {
-            $sUserID = $this->_getFacebookUserId();
+        // If social Media connection is enabled, trying to login user using social media Ids
 
+        $activeSocialMedia = SMLogin::getActivatedSocialMedia();
+        foreach ($activeSocialMedia as $service) {
+            if (!$sUserID && !$blAdmin) {
+                $sUserID = $this->getUserId($service);
+            }
         }
-        if (!$sUserID && !$blAdmin && $oConfig->getConfigParam("gmailLogin")) {
-            $sUserID = $this->_getGoogleUserId();
-        }
-
 
         // checking user results
         if ($sUserID) {
@@ -58,92 +67,47 @@ class spxUser extends spxUser_parent
         }
     }
 
-        //TODO refactor code below into strategy pattern
     /**
-     * Checks if user is connected via Facebook connect and if so, returns user id.
+     * Gets oxid user id. Compares if there is Social media ID in the row and if it is gets the oxid id. IF there is not
+     * oxid user id, then user doesnt exist and it creates new user. Return oxid user id.
      *
-     * @return string
+     * @param object $oSocialMedia
+     *
+     * @return string $sUserID
      */
-    protected function _getFacebookUserId()
+    public function getUserId($oSocialMedia)
     {
-
-        $oDb = oxDb::getDb();
-        $oFb = oxRegistry::get("oxFb");
-
-        $oConfig = $this->getConfig();
-        if ($oFb->isConnected() && $oFb->getUser()) {
-            $sUserSelect = "oxuser.oxfbid = " . $oDb->quote($oFb->getUser());
-            $sShopSelect = "";
-
-
-            $sSelect = "select oxid from oxuser where oxuser.oxactive = 1 and {$sUserSelect} {$sShopSelect} ";
-            $sUserID = $oDb->getOne($sSelect);
-
+        if ($oSocialMedia->isConnected() && $aSocialMediaUser = $oSocialMedia->getUser()) {
+            $sUserID = $this->getUserFromDb($oSocialMedia->sIdFieldName, $aSocialMediaUser['id']);
             if (!$sUserID) {
-
-                $aUserData = $oFb->api("/me?fields=id,name,email"); //make api call
-                //parse data
-                $sUserFBID = array_shift($aUserData);
-                $sUserName = array_shift($aUserData);
-                $sUserEmail = array_shift($aUserData);
-
-                //create user in DB
-                //checkIfEmailExists($sEmail);
-
-                $newUser = oxnew("oxuser");
-                $newUser->oxuser__oxfname = new oxField($sUserName);
-                $newUser->oxuser__oxfbid = new oxField($sUserFBID);
-                $newUser->oxuser__oxusername = new oxField($sUserEmail);
-                $newUser->setPassword('generic');
-
-                $sUserID = $newUser->save();
-
+                $sUserID = $this->getUserFromDb("oxusername", $aSocialMediaUser['email']);
+                //set new social media id
+                if ($sUserID) {
+                    $oSocialMedia->setIdForNewSocialMedia($aSocialMediaUser['id'], $sUserID);
+                } else {
+                    $sUserID = $oSocialMedia->register($aSocialMediaUser);
+                }
             }
         }
-
-        //prebaci ovo u zasebnu fju i overrajduj loadActiveUser
-
-
         return $sUserID;
     }
 
-    protected function _getGoogleUserId()
+    /**
+     * Gets the user oxid id from the database.
+     *
+     * @param $sComparingFieldName
+     * @param $sSearchUserCriteria
+     * @return string
+     *
+     * @returns string $sUserID
+     */
+    protected function getUserFromDb($sComparingFieldName, $sSearchUserCriteria)
     {
         $oDb = oxDb::getDb();
-        $oConfig = $this->getConfig();
-        $oGoogle = new GoogleApi();
-        $oGoogle->setScopes(array('https://www.googleapis.com/auth/userinfo.email'));
-
-        if ($oGoogle->isConnected() && $oGoogle->getUser()) {
-            $sUserSelect = "oxuser.googleId = " . $oDb->quote($oGoogle->getUser());
-            $sShopSelect = "";
-
-
-            $sSelect = "select oxid from oxuser where oxuser.oxactive = 1 and {$sUserSelect} {$sShopSelect} ";
-            $sUserID = $oDb->getOne($sSelect);
-
-            if (!$sUserID) {
-
-                $aUserData = $oGoogle->service->userinfo->get(); //make api call
-
-                //create user in DB
-                //checkIfEmailExists($sEmail);
-
-                $newUser = oxnew("oxuser");
-                $newUser->oxuser__googleId = new oxField($sUserData['id']);
-                $newUser->oxuser__oxfname = new oxField($sUserData['givenName']);
-                $newUser->oxuser__oxlname = new oxField($sUserData['familyName']);
-                $newUser->oxuser__oxusername = new oxField($sUserData['Email']);
-                //TODO hashuj password
-                $newUser->setPassword('generic');
-
-                $sUserID = $newUser->save();
-
-            }
-        }
-
+        $sUserSelect = "oxuser.$sComparingFieldName = " . $oDb->quote($sSearchUserCriteria);
+        $sSelect = "select oxid from oxuser where oxuser.oxactive = 1 and {$sUserSelect}";
+        $sUserID = $oDb->getOne($sSelect);
+        return $sUserID;
     }
+
 }
-
-
-?>

@@ -2,81 +2,72 @@
 
 /**
  * Class which defines events.Sets up initial enviroment for modul.
- * Checks if DB columns exist and creates them if they dont. Checks if there are GmailID and TwitterID columns.Facebook ID column(OXFBID)
- * is built-in in user(oxuser) table.
+ * Checks if DB columns exist and creates them if they dont. Checks if there are GmailID and TwitterID columns.Facebook
+ * ID column(OXFBID) is built-in in user(oxuser) table.
  */
 class socialMediaLoginEvents
 {
 
+
     /**
-     * onActivate event function.
+     * Map of SEO Urls
+     * @var array
+     */
+    public static $endpoints = array(
+        'Login/' => 'index.php?cl=spxLogin',
+    );
+
+    /**
+     * onActivate event function.Checks which social media services are enabled,and checks if there are columns in user table
+     * for social media Id.If columns dont exist, creates them.Sets seo urls.Clears cache.
+     *
      * @return void
      */
     public static function onActivate()
     {
-        $aFieldsExist = self::hasDatabaseFields();
-        if (in_array(false, $aFieldsExist)) {
-            foreach ($aFieldsExist as $sService => $blValue) {
-                if ($blValue === false && self::checkIfServiceEnabled($sService) === true) {
-                    self::CreateColumn($sService);
-                }
+        $aSocialMediaActivatedServices = SMLogin::getActivatedSocialMedia();
+        /** @var SMLogin $service */
+        foreach ($aSocialMediaActivatedServices as $service) {
+            if ($service->hasDatabaseField() === false) {
+                $service->createDatabaseColumn();
             }
         }
+        self::setSeoUrls();
         self::clearCache();
     }
 
     /**
-     * Checks if googleId and Twitter Id database fields exist.
-     * @return array  ['service_name'=>bool]
+     *Sets seo urls in database in oxseo table.
      */
-    private static function hasDatabaseFields()
+    public static function setSeoUrls()
     {
-        $aDatabaseFieldsExists = array();
-        $sTable = 'oxuser';
-        $sColumns = array('googleId', 'twitterId');
-        $oDbHandler = oxNew("oxDbMetaDataHandler");
-        foreach ($sColumns as $column) {
-            $aDatabaseFieldsExists[$column] = $oDbHandler->fieldExists($column, $sTable);
-        }
+        $oDb = oxDb::getDb(oxDb::FETCH_MODE_ASSOC);
+        $sQtedType = $oDb->quote('static');
+        foreach (self::$endpoints as $seoUrl => $value) {
+            foreach (oxRegistry::getConfig()->getShopIds() as $iShopId) {
+                $seoHash = md5(strtolower($seoUrl));
+                $iQtedShopId = $oDb->quote($iShopId);
+                $sQtedStdUrl = $oDb->quote($value);
+                $sQtedSeoUrl = $oDb->quote($seoUrl);
+                $sQtedIdent = $oDb->quote($seoHash);
 
-        return $aDatabaseFieldsExists;
+                $sSql = "INSERT INTO oxseo
+                    (oxobjectid, oxident, oxshopid, oxlang, oxstdurl, oxseourl, oxtype, oxfixed, oxexpired, oxparams)
+                VALUES
+                    ( {$sQtedIdent}, {$sQtedIdent}, {$iQtedShopId}, 0, {$sQtedStdUrl}, {$sQtedSeoUrl}, {$sQtedType}, '0', '0', '' )
+                ON duplicate KEY UPDATE
+                    oxident = {$sQtedIdent}, oxstdurl = {$sQtedStdUrl}, oxseourl = {$sQtedSeoUrl}, oxfixed = '', oxexpired = '0'";
+
+                oxDb::getDb()->execute($sSql);
+            }
+        }
     }
 
     /**
-     * Creates columns for social media ID(googleId,TwitterId).
-     * @param string $key - name from the service.
-     * @return bool
+     * Clears tmp cache folder.
+     *
+     * @return void
      */
-    private static function checkIfServiceEnabled($sService)
-    {
-        $myconfig = oxRegistry::get("oxConfig");
-
-        switch ($sService) {
-            case 'googleId':
-                return $myconfig->getConfigParam("gmailLogin");
-                break;
-            case 'twitterId':
-                return $myconfig->getConfigParam("twitterLogin");
-                break;
-            default:
-                throw new Exception("Service doesnt exist");
-        }
-    }
-
-    /**Creates a column for service ID.
-     * @param $key
-     */
-
-
-    private static function createColumn($sService)
-    {
-        $sSql = "ALTER TABLE oxuser ADD COLUMN {$sService} varchar(50)";
-        oxDb::getDb()->execute($sSql);
-        $oDbHandler = oxNew("oxDbMetaDataHandler");
-        $oDbHandler->updateViews();
-
-    }
-
     private static function clearCache()
     {
         $cfg = oxRegistry::get("oxConfig");
@@ -84,10 +75,30 @@ class socialMediaLoginEvents
         foreach (glob($tmp) as $item) {
             if (!is_dir($item)) {
                 unlink($item);
+            } else {
+                $dir = $item . "/*";
+                foreach (glob($dir) as $files) {
+                    unlink($files);
+                }
             }
         }
-
     }
 
+    /**
+     * onDeactivate event function.Clears seo urls.Clears cache.
+     */
+    public static function onDeactivate()
+    {
+        self::unsetSeoUrls();
+        self::clearCache();
+    }
+
+    /**
+     * Unsets seo urls in database in oxseo table.
+     */
+    public static function unsetSeoUrls()
+    {
+        oxDb::getDb()->execute("DELETE FROM oxseo WHERE OXSTDURL LIKE '%spxLogin%'");
+    }
 
 }

@@ -1,0 +1,21 @@
+#googleConnect {
+
+    display: inline-block;
+    background: red;
+    color: white;
+    width: 190px;
+    border-radius: 5px;
+    white-space: nowrap;
+
+}
+
+#twitterConnect {
+
+    display: inline-block;
+    background: deepskyblue;
+    color: white;
+    width: 190px;
+    border-radius: 5px;
+    white-space: nowrap;
+}
+

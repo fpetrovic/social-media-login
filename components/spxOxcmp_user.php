@@ -3,60 +3,23 @@
 
 class spxOxcmp_user extends spxOxcmp_user_parent
 {
-    public function logout()
-    {
-        $myConfig = $this->getConfig();
-        $oUser = oxNew('oxuser');
-
-        if ($oUser->logout()) {
-
-            $this->setLoginStatus(USER_LOGOUT);
-
-            // finalizing ..
-            $this->_afterLogout();
-
-
-            if ($this->getParent()->isEnabledPrivateSales()) {
-                return 'account';
-            }
-
-            $oxFb = oxRegistry::get("oxFb");
-            if ($oxFb->isConnected()) {
-                $logoutURL = $oxFb->getLogoutUrl();
-                oxRegistry::getUtils()->redirect($logoutURL);
-            }
-
-            // redirecting if user logs out in SSL mode
-            if (oxRegistry::getConfig()->getRequestParameter('redirect') && $myConfig->getConfigParam('sSSLShopURL')) {
-                oxRegistry::getUtils()->redirect($this->_getLogoutLink());
-            }
-        }
-    }
+    /**
+     * Logs out user from on logout request.If is possible logs out user from social media too(google does not allow this for example).
+     * Redirects to home url,after logout.
+     *
+     * @throws exception
+     */
 
     protected function _afterLogout()
     {
-        oxRegistry::getSession()->deleteVariable('paymentid');
-        oxRegistry::getSession()->deleteVariable('sShipSet');
-        oxRegistry::getSession()->deleteVariable('deladrid');
-        oxRegistry::getSession()->deleteVariable('dynvalue');
+        parent::_afterLogout();
 
-
-        $oxFb = oxRegistry::get("oxFb");
-        //try to logout
-        if ($oxFb->isConnected()) {
-            $fbPattern = "/fb_[0-9]+_[a-zA-Z]/";
-            $fbKeys = preg_grep($fbPattern, array_keys($_SESSION));
-            foreach ($fbKeys as $fbKey) {
-                oxRegistry::getSession()->deleteVariable($fbKey);
+        $SMServices = SMLogin::getActivatedSocialMedia();
+        foreach ($SMServices as $service) {
+            if ($service->isConnected()) {
+                $service->logout();
             }
         }
-
-        // resetting & recalc basket
-        if (($oBasket = $this->getSession()->getBasket())) {
-            $oBasket->resetUserInfo();
-            $oBasket->onUpdate();
-        }
+        header("Location:" . SMLogin::$redirectUri);
     }
 }
-
-?>
